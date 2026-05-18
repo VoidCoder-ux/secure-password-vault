@@ -1,6 +1,7 @@
 {
   "name": "Secure Password Vault",
   "short_name": "Vault",
+  "id": "./",
   "description": "Yerel ve sifir-bilgi mantiginda calisan guvenli sifre kasasi.",
   "start_url": "./",
   "scope": "./",

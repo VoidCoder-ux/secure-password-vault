@@ -20,8 +20,14 @@
 body {
   margin: 0;
   min-height: 100vh;
+  min-height: 100dvh;
   background: var(--bg);
   color: var(--text);
+  padding:
+    env(safe-area-inset-top)
+    env(safe-area-inset-right)
+    env(safe-area-inset-bottom)
+    env(safe-area-inset-left);
 }
 
 button,
@@ -34,6 +40,7 @@ select {
 .auth-shell,
 .vault-shell {
   min-height: 100vh;
+  min-height: 100dvh;
 }
 
 .auth-shell {
@@ -81,7 +88,7 @@ p {
 
 h1 {
   margin-bottom: 12px;
-  font-size: clamp(2rem, 4vw, 3.7rem);
+  font-size: 2.6rem;
   line-height: 1;
   letter-spacing: 0;
 }
@@ -103,6 +110,29 @@ h2 {
 .edit-form {
   display: grid;
   gap: 12px;
+}
+
+.field-label {
+  display: grid;
+  gap: 7px;
+}
+
+.field-title {
+  color: var(--text);
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.field-help,
+.field-error {
+  color: var(--muted);
+  font-size: 0.86rem;
+  line-height: 1.4;
+}
+
+.field-error {
+  color: var(--red);
+  min-height: 1.2em;
 }
 
 input,
@@ -134,6 +164,11 @@ select:focus {
   cursor: pointer;
 }
 
+.btn:disabled {
+  cursor: wait;
+  opacity: 0.68;
+}
+
 .btn.primary {
   background: var(--gold);
   color: #19170d;
@@ -157,7 +192,7 @@ select:focus {
 }
 
 .btn.compact {
-  min-height: 36px;
+  min-height: 44px;
 }
 
 .btn.icon {
@@ -207,7 +242,8 @@ select:focus {
   grid-template-rows: auto auto 1fr auto;
   gap: 16px;
   min-height: 100vh;
-  padding: 22px;
+  min-height: 100dvh;
+  padding: calc(22px + env(safe-area-inset-top)) 22px calc(22px + env(safe-area-inset-bottom));
   border-right: 1px solid var(--line);
   background: var(--panel);
 }
@@ -262,7 +298,7 @@ select:focus {
 
 .detail {
   min-width: 0;
-  padding: 24px;
+  padding: calc(24px + env(safe-area-inset-top)) 24px calc(24px + env(safe-area-inset-bottom));
 }
 
 .security-bar {
@@ -292,6 +328,12 @@ select:focus {
   border-radius: 8px;
   background: var(--panel-2);
   padding: 22px;
+}
+
+.password-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
 }
 
 .secret-line {
@@ -325,6 +367,7 @@ select:focus {
   display: flex;
   align-items: center;
   gap: 10px;
+  min-height: 44px;
 }
 
 .check-line input {
@@ -333,6 +376,10 @@ select:focus {
 }
 
 .generator input {
+  max-width: 150px;
+}
+
+.generator .field-label {
   max-width: 150px;
 }
 
@@ -349,14 +396,25 @@ select:focus {
 }
 
 @media (max-width: 820px) {
+  h1 {
+    font-size: 2rem;
+  }
+
   .vault-shell {
     grid-template-columns: 1fr;
   }
 
   .sidebar {
     min-height: auto;
+    position: sticky;
+    top: 0;
+    z-index: 2;
     border-right: 0;
     border-bottom: 1px solid var(--line);
+  }
+
+  .entry-list {
+    max-height: 34vh;
   }
 
   .form-grid,
@@ -364,9 +422,49 @@ select:focus {
     grid-template-columns: 1fr;
   }
 
+  .secret-line {
+    align-items: stretch;
+  }
+
+  .secret-line .btn {
+    width: 100%;
+  }
+
   .detail-header,
   .security-bar {
     align-items: flex-start;
     flex-direction: column;
+  }
+}
+
+@media (max-width: 480px) {
+  .auth-shell {
+    padding: 14px;
+  }
+
+  .auth-panel,
+  .entry-detail,
+  .empty-state,
+  .edit-form {
+    padding: 18px;
+  }
+
+  .detail {
+    padding: 16px;
+  }
+
+  .button-row,
+  .side-actions,
+  .auth-actions,
+  .generator {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .button-row .btn,
+  .side-actions .btn,
+  .auth-actions .btn,
+  .generator .btn {
+    width: 100%;
   }
 }
