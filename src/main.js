@@ -1,4 +1,4 @@
-import { createEncryptedVault, encryptVaultWithKey, lockKey, unlockVault } from './crypto.js';
+import { createEncryptedVault, encryptVaultWithKey, lockKey, unlockVault, validateEncryptedPayload } from './crypto.js';
 import { generatePassword, passwordScore } from './password.js';
 import {
   deleteEncryptedVault,
@@ -20,6 +20,9 @@ const state = {
   lockTimer: null,
   notice: ''
 };
+const MASK = '************';
+let clipboardClearTimer = null;
+let clipboardClearToken = 0;
 
 const emptyEntry = {
   title: '',
@@ -69,7 +72,7 @@ function renderLocked(error = '') {
             : null
         ]),
         el('p', { className: 'security-note' }, [
-          'Argon2id + XChaCha20-Poly1305 kullanilir. Veriler yalnizca sifreli bicimde saklanir.'
+          'Argon2id + AES-256-GCM kullanilir. Veriler yalnizca sifreli bicimde saklanir.'
         ])
       ])
     ])
@@ -154,17 +157,18 @@ function searchBox() {
   const field = input('search', 'Ara', 'site, kullanici, kategori');
   field.value = state.search;
   field.addEventListener('input', () => {
+    const caret = field.selectionStart ?? field.value.length;
     state.search = field.value;
     renderVault();
+    const nextField = app.querySelector('input[aria-label="Ara"]');
+    nextField?.focus();
+    nextField?.setSelectionRange(caret, caret);
   });
   return field;
 }
 
 function entryList() {
-  const query = state.search.trim().toLowerCase();
-  const entries = state.vault.entries
-    .filter((entry) => [entry.title, entry.username, entry.category, entry.url].join(' ').toLowerCase().includes(query))
-    .sort((a, b) => Number(b.favorite) - Number(a.favorite) || a.title.localeCompare(b.title));
+  const entries = getFilteredEntries();
 
   if (!entries.length) {
     return el('div', { className: 'empty-list' }, ['Kayit bulunamadi.']);
@@ -230,13 +234,13 @@ function entryDetail(entry) {
 }
 
 function secretLine(label, value, masked) {
-  const text = el('span', { className: 'secret-value' }, [masked ? '••••••••••••' : value]);
+  const text = el('span', { className: 'secret-value' }, [masked ? MASK : value]);
   let visible = false;
   const controls = masked
     ? [
         button('Goster', 'ghost compact', () => {
           visible = !visible;
-          text.textContent = visible ? value : '••••••••••••';
+          text.textContent = visible ? value : MASK;
         }),
         button('Kopyala', 'secondary compact', () => copySecret(value))
       ]
@@ -291,18 +295,33 @@ function editEntry(entry) {
 
   const generatedScore = el('span', { className: 'score' }, ['']);
   const generate = button('Guclu sifre uret', 'secondary', () => {
-    fields.password.value = generatePassword({ length: Number(generatorLength.value) });
-    generatedScore.textContent = `Guc: ${passwordScore(fields.password.value)}/5`;
+    try {
+      fields.password.value = generatePassword({ length: Number(generatorLength.value) });
+      generatedScore.textContent = `Guc: ${passwordScore(fields.password.value)}/5`;
+    } catch (error) {
+      generatedScore.textContent = error.message;
+    }
   });
 
   const save = button('Kaydet', 'primary', async () => {
+    if (!fields.url.checkValidity()) {
+      fields.url.reportValidity();
+      return;
+    }
+    const normalizedUrl = normalizeUrl(fields.url.value.trim());
+    if (fields.url.value.trim() && !normalizedUrl) {
+      fields.url.setCustomValidity('Yalnizca http:// veya https:// adresleri kabul edilir.');
+      fields.url.reportValidity();
+      fields.url.setCustomValidity('');
+      return;
+    }
     const now = new Date().toISOString();
     const next = {
       id: entry?.id || crypto.randomUUID(),
       title: fields.title.value.trim(),
       username: fields.username.value.trim(),
       password: fields.password.value,
-      url: fields.url.value.trim(),
+      url: normalizedUrl,
       category: fields.category.value.trim(),
       notes: fields.notes.value.trim(),
       favorite: fields.favorite.checked,
@@ -353,7 +372,7 @@ async function deleteEntry(id) {
   if (!ok) return;
   state.vault.entries = state.vault.entries.filter((entry) => entry.id !== id);
   state.vault.updatedAt = new Date().toISOString();
-  state.selectedId = state.vault.entries[0]?.id || null;
+  state.selectedId = getFilteredEntries()[0]?.id || state.vault.entries[0]?.id || null;
   await persistAndRender('Kayit silindi.');
 }
 
@@ -376,6 +395,7 @@ function importButton() {
     if (!file) return;
     try {
       const payload = await readJsonFile(file);
+      validateEncryptedPayload(payload);
       if (hasStoredVault()) {
         const ok = confirm('Import edilen sifreli kasa bu cihazdaki kasanin yerine gececek.');
         if (!ok) return;
@@ -383,7 +403,11 @@ function importButton() {
       saveEncryptedVault(payload);
       lockVault('Sifreli kasa import edildi. Ana parola ile acin.');
     } catch (error) {
-      renderLocked(error.message);
+      if (state.vault) {
+        renderVault(error.message);
+      } else {
+        renderLocked(error.message);
+      }
     }
   });
 
@@ -395,15 +419,29 @@ function importButton() {
 
 async function copySecret(value) {
   if (!value || value === '-') return;
-  await navigator.clipboard.writeText(value);
-  state.notice = 'Panoya kopyalandi. 30 saniye sonra temizleme denenecek.';
-  renderVault(state.notice);
-  window.setTimeout(async () => {
+  if (!navigator.clipboard?.writeText) {
+    renderVault('Clipboard API bu ortamda kullanilamiyor.');
+    return;
+  }
+  try {
+    await navigator.clipboard.writeText(value);
+  } catch {
+    renderVault('Pano izni reddedildi veya kullanilamiyor.');
+    return;
+  }
+  const token = ++clipboardClearToken;
+  if (clipboardClearTimer) {
+    window.clearTimeout(clipboardClearTimer);
+  }
+  renderVault('Panoya kopyalandi. 30 saniye sonra temizleme denenecek.');
+  clipboardClearTimer = window.setTimeout(async () => {
+    if (token !== clipboardClearToken) return;
     try {
       await navigator.clipboard.writeText('');
     } catch {
       // Browser izin vermezse sessizce gecilir.
     }
+    clipboardClearTimer = null;
   }, 30000);
 }
 
@@ -438,6 +476,23 @@ function normalizeVault(vault) {
     updatedAt: vault.updatedAt || new Date().toISOString(),
     entries: Array.isArray(vault.entries) ? vault.entries.map((entry) => ({ ...emptyEntry, ...entry })) : []
   };
+}
+
+function getFilteredEntries() {
+  const query = state.search.trim().toLowerCase();
+  return state.vault.entries
+    .filter((entry) => [entry.title, entry.username, entry.category, entry.url].join(' ').toLowerCase().includes(query))
+    .sort((a, b) => Number(b.favorite) - Number(a.favorite) || a.title.localeCompare(b.title));
+}
+
+function normalizeUrl(value) {
+  if (!value) return '';
+  try {
+    const url = new URL(value);
+    return ['http:', 'https:'].includes(url.protocol) ? url.href : '';
+  } catch {
+    return '';
+  }
 }
 
 function input(type, label, placeholder) {

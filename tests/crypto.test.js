@@ -5,7 +5,8 @@ import {
   encryptVaultWithKey,
   getFastTestKdfParams,
   lockKey,
-  unlockVault
+  unlockVault,
+  validateEncryptedPayload
 } from '../src/crypto.js';
 
 test('vault round-trip encrypts and decrypts with the master password', async () => {
@@ -38,4 +39,26 @@ test('wrong master password fails authentication', async () => {
   );
 
   await assert.rejects(() => unlockVault('wrong-master-password', payload));
+});
+
+test('payload validation rejects unsafe KDF and malformed encrypted fields', async () => {
+  const { payload } = await createEncryptedVault(
+    'very-strong-master-password',
+    { createdAt: '', updatedAt: '', entries: [] },
+    await getFastTestKdfParams()
+  );
+
+  assert.throws(() => validateEncryptedPayload({ ...payload, cipher: undefined }), /Sifreleme bicimi/);
+  assert.throws(() => validateEncryptedPayload({ ...payload, salt: 'bad-base64' }), /base64/);
+  assert.throws(() => validateEncryptedPayload({ ...payload, nonce: btoa('short') }), /nonce/);
+  assert.throws(() => validateEncryptedPayload({ ...payload, ciphertext: btoa('tiny') }), /sifreli veri/);
+  assert.throws(
+    () => validateEncryptedPayload({ ...payload, kdf: { ...payload.kdf, memoryKiB: 1024 } }),
+    /Argon2 bellek/
+  );
+  assert.throws(() => validateEncryptedPayload({ ...payload, kdf: { ...payload.kdf, timeCost: 0 } }), /Argon2 zaman/);
+  assert.throws(
+    () => validateEncryptedPayload({ ...payload, kdf: { ...payload.kdf, parallelism: 2 } }),
+    /Argon2 paralellik/
+  );
 });
