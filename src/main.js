@@ -16,6 +16,7 @@ const state = {
   key: null,
   selectedId: null,
   search: '',
+  mobilePane: 'list',
   lockMinutes: 5,
   lockTimer: null,
   notice: '',
@@ -54,11 +55,11 @@ function renderLocked(error = '') {
       el('section', { className: 'auth-panel' }, [
         el('div', { className: 'brand-lock', ariaHidden: 'true' }, ['']),
         el('p', { className: 'eyebrow' }, ['Secure Password Vault']),
-        el('h1', {}, ['Sifre kasaniz sadece ana parolanizla acilir']),
+        el('h1', {}, ['Şifre kasanız sadece ana parolanızla açılır']),
         el('p', { className: 'lede' }, [
           hasStoredVault()
-            ? 'Bu cihazda sifreli bir kasa var. Ana parolanizi girerek acin.'
-            : 'Yeni kasa olusturun. Ana parola saklanmaz; unutulursa kasa acilamaz.'
+            ? 'Bu cihazda şifreli bir kasa var. Ana parolanızı girerek açın.'
+            : 'Yeni kasa oluşturun. Ana parola saklanmaz; unutulursa kasa açılamaz.'
         ]),
         error ? el('div', { className: 'alert danger', role: 'alert' }, [error]) : null,
         hasStoredVault() ? unlockForm() : createVaultForm(),
@@ -66,7 +67,7 @@ function renderLocked(error = '') {
           importButton(),
           hasStoredVault()
             ? button('Yerel kasayi sil', 'danger ghost', () => {
-                const ok = confirm('Bu cihazdaki sifreli kasa silinecek. Export dosyaniz yoksa geri alinamaz.');
+                const ok = confirm('Bu cihazdaki şifreli kasa silinecek. Export dosyanız yoksa geri alınamaz.');
                 if (ok) {
                   deleteEncryptedVault();
                   renderLocked('Yerel kasa silindi.');
@@ -75,7 +76,7 @@ function renderLocked(error = '') {
             : null
         ]),
         el('p', { className: 'security-note' }, [
-          'Argon2id + AES-256-GCM kullanilir. Veriler yalnizca sifreli bicimde saklanir.'
+          'Argon2id + AES-256-GCM kullanılır. Veriler yalnızca şifreli biçimde saklanır.'
         ])
       ])
     ])
@@ -88,28 +89,32 @@ function createVaultForm() {
     minlength: '12',
     required: true
   });
-  const confirmInput = input('password', 'Ana parolayi tekrar girin', '', {
+  const confirmInput = input('password', 'Ana parolayı tekrar girin', '', {
     autocomplete: 'new-password',
     minlength: '12',
     required: true
   });
   const acknowledgeInput = el('input', { type: 'checkbox', required: true });
-  const strengthText = el('span', { className: 'score', ariaLive: 'polite' }, ['Ana parola gucu: -']);
+  const passwordToggle = passwordToggleButton(passwordInput);
+  const confirmToggle = passwordToggleButton(confirmInput);
+  const strengthText = el('span', { className: 'score', ariaLive: 'polite' }, ['Ana parola gücü: -']);
+  const checklist = passwordChecklist();
   const matchText = el('span', { className: 'field-help', ariaLive: 'polite' }, [
-    'Ana parola tekrar alani eslesince kasa olusturulabilir.'
+    'Ana parola tekrar alanı eşleşince kasa oluşturulabilir.'
   ]);
   const formError = el('div', { className: 'field-error', role: 'alert' }, ['']);
   let pending = false;
   const updateHints = () => {
-    strengthText.textContent = `Ana parola gucu: ${passwordScore(passwordInput.value)}/5`;
+    strengthText.textContent = `Ana parola gücü: ${passwordScore(passwordInput.value)}/5`;
+    updatePasswordChecklist(checklist, passwordInput.value);
     matchText.textContent =
       confirmInput.value && passwordInput.value !== confirmInput.value
-        ? 'Ana parola tekrar alani eslesmiyor.'
-        : 'Ana parola tekrar alani eslesince kasa olusturulabilir.';
+        ? 'Ana parola tekrar alanı eşleşmiyor.'
+        : 'Ana parola tekrar alanı eşleşince kasa oluşturulabilir.';
   };
   passwordInput.addEventListener('input', updateHints);
   confirmInput.addEventListener('input', updateHints);
-  const submit = button('Kasayi olustur', 'primary', async () => {
+  const submit = button('Kasayı oluştur', 'primary', async () => {
     if (pending) return;
     try {
       formError.textContent = '';
@@ -135,7 +140,7 @@ function createVaultForm() {
       }
       pending = true;
       submit.disabled = true;
-      submit.textContent = 'Kasa olusturuluyor...';
+      submit.textContent = 'Kasa oluşturuluyor...';
       const vault = {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -146,23 +151,24 @@ function createVaultForm() {
       state.vault = vault;
       state.key = result.key;
       saveEncryptedVault(result.payload);
-      renderVault('Kasa olusturuldu.');
+      renderVault('Kasa oluşturuldu.');
     } catch (error) {
       formError.textContent = error.message;
       submit.disabled = false;
-      submit.textContent = 'Kasayi olustur';
+      submit.textContent = 'Kasayı oluştur';
       pending = false;
     }
   });
 
   return el('form', { className: 'stack', onSubmit: prevent(() => submit.click()) }, [
-    fieldWrap('Ana parola', passwordInput, 'En az 12 karakter kullanin. Bu parola cihaz disina gonderilmez.'),
+    fieldWrap('Ana parola', el('div', { className: 'password-field' }, [passwordInput, passwordToggle]), 'En az 12 karakter kullanın. Bu parola cihaz dışına gönderilmez.'),
     strengthText,
-    fieldWrap('Ana parolayi tekrar girin', confirmInput),
+    checklist,
+    fieldWrap('Ana parolayı tekrar girin', el('div', { className: 'password-field' }, [confirmInput, confirmToggle])),
     matchText,
     el('label', { className: 'check-line recovery-check' }, [
       acknowledgeInput,
-      el('span', {}, ['Ana parolayi unutursam kasanin kurtarilamayacagini anliyorum.'])
+      el('span', {}, ['Ana parolayı unutursam kasanın kurtarılamayacağını anlıyorum.'])
     ]),
     formError,
     submit
@@ -174,11 +180,12 @@ function unlockForm() {
     autocomplete: 'current-password',
     required: true
   });
+  const passwordToggle = passwordToggleButton(passwordInput);
   const formHelp = el('div', { className: 'field-help' }, [
-    'Ana parola bizde saklanmaz. Dogru parola veya dogru yedek dosyasi olmadan kasa acilamaz.'
+    'Ana parola bizde saklanmaz. Doğru parola veya doğru yedek dosyası olmadan kasa açılamaz.'
   ]);
   let pending = false;
-  const submit = button('Kasayi ac', 'primary', async () => {
+  const submit = button('Kasayı aç', 'primary', async () => {
     if (pending) return;
     try {
       if (!passwordInput.checkValidity()) {
@@ -188,21 +195,21 @@ function unlockForm() {
       }
       pending = true;
       submit.disabled = true;
-      submit.textContent = 'Kasa aciliyor...';
+      submit.textContent = 'Kasa açılıyor...';
       const payload = loadEncryptedVault();
       const result = await unlockVault(passwordInput.value, payload);
       state.payload = payload;
       state.vault = normalizeVault(result.vault);
       state.key = result.key;
       state.selectedId = state.vault.entries[0]?.id || null;
-      renderVault('Kasa acildi.');
+      renderVault('Kasa açıldı.');
     } catch (error) {
-      renderLocked('Ana parola hatali, yedek dosyasi bozuk veya kasa formati desteklenmiyor.');
+      renderLocked('Ana parola hatalı, yedek dosyası bozuk veya kasa formatı desteklenmiyor.');
     }
   });
 
   return el('form', { className: 'stack', onSubmit: prevent(() => submit.click()) }, [
-    fieldWrap('Ana parola', passwordInput),
+    fieldWrap('Ana parola', el('div', { className: 'password-field' }, [passwordInput, passwordToggle])),
     formHelp,
     submit
   ]);
@@ -217,35 +224,40 @@ function renderVault(notice = '', noticeType = 'success') {
   const totalEntries = state.vault.entries.length;
   const favoriteEntries = state.vault.entries.filter((entry) => entry.favorite).length;
   app.replaceChildren(
-    el('main', { className: 'vault-shell' }, [
+    el('main', { className: `vault-shell pane-${state.mobilePane}` }, [
       el('header', { className: 'vault-hero' }, [
         el('div', { className: 'vault-title' }, [
-          el('p', { className: 'eyebrow' }, ['Yerel sifreli kasa']),
-          el('h1', {}, ['Sifre kasasi']),
+          el('p', { className: 'eyebrow' }, ['Yerel şifreli kasa']),
+          el('h1', {}, ['Şifre kasası']),
           el('p', { className: 'lede' }, [
-            'Kayitlariniz bu cihazda sifreli tutulur. Ana parola olmadan kasa acilamaz.'
+            'Kayıtlarınız bu cihazda şifreli tutulur. Ana parola olmadan kasa açılamaz.'
           ])
         ]),
         el('div', { className: 'vault-actions' }, [
-          button('Yeni kayit', 'primary', () => editEntry(null)),
-          button('Yedek indir', 'ghost', exportVault),
-          importButton(),
-          button('Kilitle', 'ghost', () => lockVault('Kasa kilitlendi.'))
+          button('Yeni kayıt', 'primary', () => {
+            setMobilePane('detail');
+            editEntry(null);
+          }),
+          toolsMenu()
         ])
       ]),
       el('section', { className: 'vault-summary' }, [
-        statTile('Toplam kayit', String(totalEntries)),
+        statTile('Toplam kayıt', String(totalEntries)),
         statTile('Favori', String(favoriteEntries)),
         statTile('Oto kilit', `${state.lockMinutes} dk`)
       ]),
+      mobilePaneSwitch(selected),
       el('section', { className: 'vault-workspace' }, [
         el('section', { className: 'list-panel' }, [
           el('div', { className: 'list-panel-header' }, [
             el('div', {}, [
-              el('p', { className: 'eyebrow' }, ['Kayitlar']),
-              el('h2', {}, [state.search ? 'Arama sonuclari' : 'Tum sifreler'])
+              el('p', { className: 'eyebrow' }, ['Kayıtlar']),
+              el('h2', {}, [state.search ? 'Arama sonuçları' : 'Tüm şifreler'])
             ]),
-            button('+', 'icon primary', () => editEntry(null), 'Yeni kayit')
+            button('+', 'icon primary', () => {
+              setMobilePane('detail');
+              editEntry(null);
+            }, 'Yeni kayıt')
           ]),
           searchBox(),
           entryList()
@@ -267,8 +279,36 @@ function statTile(label, value) {
   ]);
 }
 
+function toolsMenu() {
+  return el('details', { className: 'actions-menu' }, [
+    el('summary', { className: 'btn ghost' }, ['Araçlar']),
+    el('div', { className: 'actions-menu-panel' }, [
+      button('Yedek indir', 'ghost', exportVault),
+      importButton(),
+      button('Kilitle', 'ghost', () => lockVault('Kasa kilitlendi.'))
+    ])
+  ]);
+}
+
+function mobilePaneSwitch(selected) {
+  return el('nav', { className: 'mobile-pane-switch', ariaLabel: 'Kasa görünümü' }, [
+    button('Liste', `segmented ${state.mobilePane === 'list' ? 'active' : ''}`, () => {
+      setMobilePane('list');
+      renderVault();
+    }, 'Kayıt listesini göster'),
+    button(selected ? 'Detay' : 'Yeni kayıt', `segmented ${state.mobilePane === 'detail' ? 'active' : ''}`, () => {
+      setMobilePane('detail');
+      if (selected) {
+        renderVault();
+      } else {
+        editEntry(null);
+      }
+    }, selected ? 'Kayıt detayını göster' : 'Yeni kayıt formunu aç')
+  ]);
+}
+
 function searchBox() {
-  const field = input('search', 'Ara', 'site, kullanici, kategori');
+  const field = input('search', 'Ara', 'site, kullanıcı, kategori');
   field.value = state.search;
   field.addEventListener('input', () => {
     const caret = field.selectionStart ?? field.value.length;
@@ -286,8 +326,8 @@ function entryList() {
 
   if (!entries.length) {
     return el('div', { className: 'empty-list' }, [
-      state.search ? `"${state.search}" icin kayit bulunamadi. ` : 'Kayit bulunamadi.',
-      state.search ? button('Aramayi temizle', 'ghost compact', () => {
+      state.search ? `"${state.search}" için kayıt bulunamadı. ` : 'Henüz kayıt yok.',
+      state.search ? button('Aramayı temizle', 'ghost compact', () => {
         state.search = '';
         renderVault();
       }) : ''
@@ -300,10 +340,11 @@ function entryList() {
     entries.map((entry) => {
       const row = button('', `entry-row ${entry.id === state.selectedId ? 'active' : ''}`, () => {
         state.selectedId = entry.id;
+        setMobilePane('detail');
         renderVault();
-      }, `${entry.title} kaydini ac`, [
-        el('span', { className: 'entry-title' }, [entry.favorite ? '* ' : '', entry.title || 'Adsiz kayit']),
-        el('span', { className: 'entry-subtitle' }, [entry.username || entry.url || 'Kullanici yok'])
+      }, `${entry.title} kaydını aç`, [
+        el('span', { className: 'entry-title' }, [entry.favorite ? '* ' : '', entry.title || 'Adsız kayıt']),
+        el('span', { className: 'entry-subtitle' }, [entry.username || entry.url || 'Kullanıcı yok'])
       ]);
       if (entry.id === state.selectedId) {
         row.setAttribute('aria-current', 'true');
@@ -314,7 +355,7 @@ function entryList() {
 }
 
 function securityBar() {
-  const select = el('select', { ariaLabel: 'Otomatik kilit suresi' }, [
+  const select = el('select', { ariaLabel: 'Otomatik kilit süresi' }, [
     option('1', '1 dk'),
     option('5', '5 dk'),
     option('15', '15 dk'),
@@ -327,7 +368,7 @@ function securityBar() {
   });
 
   return el('div', { className: 'security-bar' }, [
-    el('span', {}, ['Yerel sifreli kasa']),
+    el('span', {}, ['Yerel şifreli kasa']),
     el('label', { className: 'inline-field' }, ['Oto kilit', select])
   ]);
 }
@@ -337,21 +378,21 @@ function entryDetail(entry) {
     el('div', { className: 'detail-header' }, [
       el('div', {}, [
         el('p', { className: 'eyebrow' }, [entry.category || 'Genel']),
-        el('h2', {}, [entry.title || 'Adsiz kayit'])
+        el('h2', {}, [entry.title || 'Adsız kayıt'])
       ]),
       el('div', { className: 'button-row' }, [
-        button('Duzenle', 'secondary', () => editEntry(entry)),
+        button('Düzenle', 'secondary', () => editEntry(entry)),
         button('Sil', 'danger ghost', () => deleteEntry(entry.id))
       ])
     ]),
-    secretLine('Kullanici', entry.username, false),
-    secretLine('Sifre', entry.password, true),
+    secretLine('Kullanıcı', entry.username, false),
+    secretLine('Şifre', entry.password, true),
     entry.url ? linkLine('Adres', entry.url) : secretLine('Adres', '-', false),
     secretLine('Not', entry.notes || '-', false),
     el('dl', { className: 'meta-grid' }, [
-      el('dt', {}, ['Olusturma']),
+      el('dt', {}, ['Oluşturma']),
       el('dd', {}, [formatDate(entry.createdAt)]),
-      el('dt', {}, ['Guncelleme']),
+      el('dt', {}, ['Güncelleme']),
       el('dd', {}, [formatDate(entry.updatedAt)])
     ])
   ]);
@@ -363,10 +404,10 @@ function secretLine(label, value, masked) {
   let toggleButton;
   const controls = masked
     ? [
-        (toggleButton = button('Goster', 'ghost compact', () => {
+        (toggleButton = button('Göster', 'ghost compact', () => {
           visible = !visible;
           text.textContent = visible ? value : MASK;
-          toggleButton.textContent = visible ? 'Gizle' : 'Goster';
+          toggleButton.textContent = visible ? 'Gizle' : 'Göster';
           toggleButton.setAttribute('aria-pressed', String(visible));
         })),
         button('Kopyala', 'secondary compact', () => copySecret(value))
@@ -378,7 +419,11 @@ function secretLine(label, value, masked) {
     toggleButton.setAttribute('aria-pressed', 'false');
   }
 
-  return el('div', { className: 'secret-line' }, [el('span', { className: 'label' }, [label]), text, ...controls]);
+  return el('div', { className: 'secret-line' }, [
+    el('span', { className: 'label' }, [label]),
+    text,
+    controls.length ? el('div', { className: 'secret-actions' }, controls) : null
+  ]);
 }
 
 function linkLine(label, value) {
@@ -386,36 +431,40 @@ function linkLine(label, value) {
   return el('div', { className: 'secret-line' }, [
     el('span', { className: 'label' }, [label]),
     link,
-    button('Kopyala', 'ghost compact', () => copySecret(value))
+    el('div', { className: 'secret-actions' }, [button('Kopyala', 'ghost compact', () => copySecret(value))])
   ]);
 }
 
 function emptyState() {
   return el('div', { className: 'empty-state' }, [
-    el('h2', {}, [state.search ? 'Arama sonucu yok' : 'Kasa bos']),
+    el('h2', {}, [state.search ? 'Arama sonucu yok' : 'Kasa boş']),
     el('p', {}, [
       state.search
-        ? 'Arama terimini temizleyebilir veya bu bilgiyle yeni bir kayit ekleyebilirsiniz.'
-        : 'Ilk kaydinizi ekleyin. Ardindan sifreli yedek dosyanizi indirip guvenli bir yerde saklayin.'
+        ? 'Arama terimini temizleyebilir veya bu bilgiyle yeni bir kayıt ekleyebilirsiniz.'
+        : 'İlk kaydınızı ekleyin. Ardından şifreli yedek dosyanızı indirip güvenli bir yerde saklayın.'
     ]),
     el('div', { className: 'button-row' }, [
-      state.search ? button('Aramayi temizle', 'ghost', () => {
+      state.search ? button('Aramayı temizle', 'ghost', () => {
         state.search = '';
         renderVault();
       }) : null,
-      button('Yeni kayit ekle', 'primary', () => editEntry(null))
+      button('Yeni kayıt ekle', 'primary', () => {
+        setMobilePane('detail');
+        editEntry(null);
+      })
     ])
   ]);
 }
 
 function editEntry(entry) {
+  setMobilePane('detail');
   const draft = { ...emptyEntry, ...entry };
   const fields = {
-    title: input('text', 'Baslik', 'or. GitHub', { required: true }),
-    username: input('text', 'Kullanici adi', 'or. mail@domain.com', { autocomplete: 'username' }),
-    password: input('password', 'Sifre', '', { required: true, autocomplete: 'new-password' }),
-    url: input('url', 'Adres', 'https://'),
-    category: input('text', 'Kategori', 'Is, kisisel, banka'),
+    title: input('text', 'Başlık', 'örn. GitHub', { required: true }),
+    username: input('text', 'Kullanıcı adı', 'örn. mail@domain.com', { autocomplete: 'username' }),
+    password: input('password', 'Şifre', '', { required: true, autocomplete: 'new-password' }),
+    url: input('text', 'Adres', 'github.com'),
+    category: input('text', 'Kategori', 'İş, kişisel, banka'),
     notes: el('textarea', { placeholder: 'Not', rows: 4, ariaLabel: 'Not' }),
     favorite: el('input', { type: 'checkbox' })
   };
@@ -435,17 +484,12 @@ function editEntry(entry) {
 
   const generatedScore = el('span', { className: 'score', ariaLive: 'polite' }, ['']);
   const formError = el('div', { className: 'field-error', role: 'alert' }, ['']);
-  const togglePassword = button('Goster', 'ghost compact', () => {
-    const visible = fields.password.type === 'password';
-    fields.password.type = visible ? 'text' : 'password';
-    togglePassword.textContent = visible ? 'Gizle' : 'Goster';
-    togglePassword.setAttribute('aria-pressed', String(visible));
-  });
-  togglePassword.setAttribute('aria-pressed', 'false');
-  const generate = button('Guclu sifre uret', 'secondary', () => {
+  const togglePassword = passwordToggleButton(fields.password);
+  fields.url.addEventListener('input', () => fields.url.setCustomValidity(''));
+  const generate = button('Güçlü şifre üret', 'secondary', () => {
     try {
       fields.password.value = generatePassword({ length: Number(generatorLength.value) });
-      generatedScore.textContent = `Guc: ${passwordScore(fields.password.value)}/5`;
+      generatedScore.textContent = `Güç: ${passwordScore(fields.password.value)}/5`;
     } catch (error) {
       generatedScore.textContent = error.message;
     }
@@ -454,22 +498,18 @@ function editEntry(entry) {
   const save = button('Kaydet', 'primary', async () => {
     formError.textContent = '';
     if (!fields.title.checkValidity()) {
-      formError.textContent = 'Baslik zorunlu.';
+      formError.textContent = 'Başlık zorunlu.';
       fields.title.focus();
       return;
     }
     if (!fields.password.checkValidity()) {
-      formError.textContent = 'Sifre zorunlu.';
+      formError.textContent = 'Şifre zorunlu.';
       fields.password.focus();
-      return;
-    }
-    if (!fields.url.checkValidity()) {
-      fields.url.reportValidity();
       return;
     }
     const normalizedUrl = normalizeUrl(fields.url.value.trim());
     if (fields.url.value.trim() && !normalizedUrl) {
-      fields.url.setCustomValidity('Yalnizca http:// veya https:// adresleri kabul edilir.');
+      fields.url.setCustomValidity('Geçerli bir web adresi yazın. Örnek: github.com veya https://github.com');
       fields.url.reportValidity();
       fields.url.setCustomValidity('');
       return;
@@ -489,7 +529,7 @@ function editEntry(entry) {
     };
 
     if (!next.title || !next.password) {
-      formError.textContent = 'Baslik ve sifre zorunlu.';
+      formError.textContent = 'Başlık ve şifre zorunlu.';
       fields.title.focus();
       return;
     }
@@ -502,17 +542,17 @@ function editEntry(entry) {
     }
     state.vault.updatedAt = now;
     state.selectedId = next.id;
-    await persistAndRender('Kayit sifreli olarak kaydedildi.');
+    await persistAndRender('Kayıt şifreli olarak kaydedildi.');
   });
 
   app.querySelector('.detail').replaceChildren(
     securityBar(),
     el('form', { className: 'edit-form', onSubmit: prevent(() => save.click()) }, [
       el('div', { className: 'form-grid' }, [
-        fieldWrap('Baslik', fields.title, 'Kaydi listede taniyabileceginiz bir ad yazin.'),
-        fieldWrap('Kullanici adi', fields.username),
-        fieldWrap('Sifre', el('div', { className: 'password-field' }, [fields.password, togglePassword])),
-        fieldWrap('Adres', fields.url, 'Yalnizca http veya https adresleri kabul edilir.'),
+        fieldWrap('Başlık', fields.title, 'Kaydı listede tanıyabileceğiniz bir ad yazın.'),
+        fieldWrap('Kullanıcı adı', fields.username),
+        fieldWrap('Şifre', el('div', { className: 'password-field' }, [fields.password, togglePassword])),
+        fieldWrap('Adres', fields.url, 'github.com yazabilirsiniz; kayıt sırasında https:// olarak tamamlanır.'),
         fieldWrap('Kategori', fields.category),
         el('label', { className: 'check-line' }, [fields.favorite, el('span', {}, ['Favori'])])
       ]),
@@ -521,7 +561,7 @@ function editEntry(entry) {
       formError,
       el('div', { className: 'button-row' }, [
         save,
-        button('Vazgec', 'ghost', () => renderVault())
+        button('Vazgeç', 'ghost', () => renderVault())
       ])
     ])
   );
@@ -529,12 +569,12 @@ function editEntry(entry) {
 }
 
 async function deleteEntry(id) {
-  const ok = confirm('Bu kayit silinecek.');
+  const ok = confirm('Bu kayıt silinecek.');
   if (!ok) return;
   state.vault.entries = state.vault.entries.filter((entry) => entry.id !== id);
   state.vault.updatedAt = new Date().toISOString();
   state.selectedId = getFilteredEntries()[0]?.id || state.vault.entries[0]?.id || null;
-  await persistAndRender('Kayit silindi.');
+  await persistAndRender('Kayıt silindi.');
 }
 
 async function persistAndRender(notice) {
@@ -546,11 +586,17 @@ async function persistAndRender(notice) {
 function exportVault() {
   if (!state.payload) return;
   downloadJson(`secure-password-vault-${new Date().toISOString().slice(0, 10)}.json`, state.payload);
-  renderVault('Sifreli export hazirlandi.');
+  renderVault('Şifreli export hazırlandı.');
 }
 
 function importButton() {
-  const fileInput = el('input', { type: 'file', accept: 'application/json', className: 'visually-hidden' });
+  const fileInput = el('input', {
+    type: 'file',
+    accept: 'application/json',
+    className: 'visually-hidden',
+    tabIndex: -1,
+    ariaHidden: 'true'
+  });
   fileInput.addEventListener('change', async () => {
     const file = fileInput.files?.[0];
     if (!file) return;
@@ -558,11 +604,11 @@ function importButton() {
       const payload = await readJsonFile(file);
       validateEncryptedPayload(payload);
       if (hasStoredVault()) {
-        const ok = confirm('Yedekten geri yukleme bu cihazdaki kasanin yerine gececek. Once mevcut kasayi yedeklediginizden emin olun.');
+        const ok = confirm('Yedekten geri yükleme bu cihazdaki kasanın yerine geçecek. Önce mevcut kasayı yedeklediğinizden emin olun.');
         if (!ok) return;
       }
       saveEncryptedVault(payload);
-      lockVault('Sifreli kasa import edildi. Ana parola ile acin.');
+      lockVault('Şifreli kasa import edildi. Ana parola ile açın.');
     } catch (error) {
       if (state.vault) {
         renderVault(error.message, 'danger');
@@ -574,33 +620,33 @@ function importButton() {
 
   return el('span', {}, [
     fileInput,
-    button('Yedekten yukle', 'ghost', () => fileInput.click())
+    button('Yedekten yükle', 'ghost', () => fileInput.click())
   ]);
 }
 
 async function copySecret(value) {
   if (!value || value === '-') return;
   if (!navigator.clipboard?.writeText) {
-    renderVault('Clipboard API bu ortamda kullanilamiyor.', 'danger');
+    renderVault('Clipboard API bu ortamda kullanılamıyor.', 'danger');
     return;
   }
   try {
     await navigator.clipboard.writeText(value);
   } catch {
-    renderVault('Pano izni reddedildi veya kullanilamiyor.', 'danger');
+    renderVault('Pano izni reddedildi veya kullanılamıyor.', 'danger');
     return;
   }
   const token = ++clipboardClearToken;
   if (clipboardClearTimer) {
     window.clearTimeout(clipboardClearTimer);
   }
-  renderVault('Panoya kopyalandi. 30 saniye sonra temizleme denenecek.');
+  renderVault('Panoya kopyalandı. 30 saniye sonra temizleme denenecek.');
   clipboardClearTimer = window.setTimeout(async () => {
     if (token !== clipboardClearToken) return;
     try {
       await navigator.clipboard.writeText('');
     } catch {
-      // Browser izin vermezse sessizce gecilir.
+      // Browser izin vermezse sessizce geçilir.
     }
     clipboardClearTimer = null;
   }, 30000);
@@ -615,6 +661,7 @@ function lockVault(message = '') {
   state.key = null;
   state.selectedId = null;
   state.search = '';
+  setMobilePane('list');
   renderLocked(message);
 }
 
@@ -631,11 +678,35 @@ function clearAutoLock() {
   }
 }
 
+function setMobilePane(pane) {
+  state.mobilePane = pane;
+  const shell = app.querySelector('.vault-shell');
+  if (shell) {
+    shell.classList.toggle('pane-list', pane === 'list');
+    shell.classList.toggle('pane-detail', pane === 'detail');
+  }
+}
+
 function normalizeVault(vault) {
+  const now = new Date().toISOString();
   return {
-    createdAt: vault.createdAt || new Date().toISOString(),
-    updatedAt: vault.updatedAt || new Date().toISOString(),
-    entries: Array.isArray(vault.entries) ? vault.entries.map((entry) => ({ ...emptyEntry, ...entry })) : []
+    createdAt: safeString(vault.createdAt) || now,
+    updatedAt: safeString(vault.updatedAt) || now,
+    entries: Array.isArray(vault.entries)
+      ? vault.entries.map((entry) => ({
+          ...emptyEntry,
+          id: safeString(entry.id) || crypto.randomUUID(),
+          title: safeString(entry.title).trim(),
+          username: safeString(entry.username).trim(),
+          password: safeString(entry.password),
+          url: normalizeUrl(safeString(entry.url).trim()),
+          category: safeString(entry.category).trim(),
+          notes: safeString(entry.notes).trim(),
+          favorite: Boolean(entry.favorite),
+          createdAt: safeString(entry.createdAt) || now,
+          updatedAt: safeString(entry.updatedAt) || now
+        }))
+      : []
   };
 }
 
@@ -650,19 +721,61 @@ function getFilteredEntries() {
 
 function normalizeUrl(value) {
   if (!value) return '';
+  const candidate = /^[a-z][a-z\d+.-]*:/i.test(value) ? value : `https://${value}`;
   try {
-    const url = new URL(value);
+    const url = new URL(candidate);
+    if (!url.hostname.includes('.') && url.hostname !== 'localhost') return '';
     return ['http:', 'https:'].includes(url.protocol) ? url.href : '';
   } catch {
     return '';
   }
 }
 
+function safeString(value) {
+  return typeof value === 'string' ? value : '';
+}
+
+function passwordToggleButton(field) {
+  const toggle = button('Göster', 'ghost compact', () => {
+    const visible = field.type === 'password';
+    field.type = visible ? 'text' : 'password';
+    toggle.textContent = visible ? 'Gizle' : 'Göster';
+    toggle.setAttribute('aria-pressed', String(visible));
+  });
+  toggle.setAttribute('aria-pressed', 'false');
+  return toggle;
+}
+
+function passwordChecklist() {
+  return el('ul', { className: 'password-checklist', ariaLive: 'polite' }, [
+    checklistItem('En az 12 karakter'),
+    checklistItem('Büyük ve küçük harf'),
+    checklistItem('Rakam'),
+    checklistItem('Sembol')
+  ]);
+}
+
+function checklistItem(text) {
+  return el('li', { className: 'missing' }, [text]);
+}
+
+function updatePasswordChecklist(list, value) {
+  const checks = [
+    value.length >= 12,
+    /[a-z]/.test(value) && /[A-Z]/.test(value),
+    /\d/.test(value),
+    /[^A-Za-z0-9]/.test(value)
+  ];
+  [...list.children].forEach((item, index) => {
+    item.className = checks[index] ? 'met' : 'missing';
+  });
+}
+
 function registerServiceWorker() {
   if (!('serviceWorker' in navigator)) return;
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('./sw.js').catch(() => {
-      // PWA destegi olmadiginda uygulama normal web uygulamasi olarak calisir.
+      // PWA desteği olmadığında uygulama normal web uygulaması olarak çalışır.
     });
   });
 }

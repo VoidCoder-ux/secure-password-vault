@@ -19,12 +19,15 @@ test('service worker and touch target styles stay in place', async () => {
   const sw = await readFile(new URL('../public/sw.js', import.meta.url), 'utf8');
   const css = await readFile(new URL('../src/styles.css', import.meta.url), 'utf8');
 
-  assert.match(sw, /secure-password-vault-v2/);
+  assert.match(sw, /secure-password-vault-v3/);
   assert.match(sw, /manifest\.webmanifest/);
   assert.match(sw, /icon-192\.png/);
+  assert.match(sw, /HTML_ASSET_PATTERN/);
+  assert.match(sw, /collectShellAssets/);
   assert.match(css, /env\(safe-area-inset-bottom\)/);
   assert.match(css, /\.btn\.compact\s*\{[^}]*min-height:\s*44px/s);
   assert.match(css, /\.check-line\s*\{[^}]*min-height:\s*44px/s);
   assert.match(css, /\.vault-workspace\s*\{/);
+  assert.match(css, /\.mobile-pane-switch\s*\{/);
   assert.doesNotMatch(css, /max-height:\s*34vh/);
 });

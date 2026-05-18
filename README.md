@@ -1,19 +1,19 @@
 # Secure Password Vault
 
-Yerel ve sifir-bilgi mantiginda calisan sifre kasasi.
+Yerel ve sıfır-bilgi mantığında çalışan şifre kasası.
 
-## Guvenlik modeli
+## Güvenlik modeli
 
-- Ana parola saklanmaz ve ag uzerinden gonderilmez.
-- Kasa anahtari Argon2id ile turetilir.
-- Kasa verisi AES-256-GCM ile sifrelenir ve dogrulanir.
-- Her kaydetmede yeni nonce kullanilir.
-- Kasa cihazda yalnizca sifreli JSON olarak tutulur.
+- Ana parola saklanmaz ve ağ üzerinden gönderilmez.
+- Kasa anahtarı Argon2id ile türetilir.
+- Kasa verisi AES-256-GCM ile şifrelenir ve doğrulanır.
+- Her kaydetmede yeni nonce kullanılır.
+- Kasa cihazda yalnızca şifreli JSON olarak tutulur.
 - Oturum otomatik kilitlenir ve pano temizleme denenir.
 
-Ana parola unutulursa kasa acilamaz. Bu bilerek tasarlanmis bir ozelliktir; arka kapi veya reset mekanizmasi yoktur.
+Ana parola unutulursa kasa açılamaz. Bu bilerek tasarlanmış bir özelliktir; arka kapı veya reset mekanizması yoktur.
 
-## Gelistirme
+## Geliştirme
 
 ```bash
 npm install
@@ -21,6 +21,6 @@ npm test
 npm run dev
 ```
 
-## Yayinlama
+## Yayınlama
 
-Repo GitHub Pages Actions ile yayinlanacak sekilde hazirlanmistir. Settings > Pages bolumunde kaynak olarak GitHub Actions secilmelidir.
+Repo GitHub Pages Actions ile yayınlanacak şekilde hazırlanmıştır. Settings > Pages bölümünde kaynak olarak GitHub Actions seçilmelidir.

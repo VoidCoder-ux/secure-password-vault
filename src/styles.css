@@ -186,6 +186,18 @@ select:focus {
   background: transparent;
 }
 
+.btn.segmented {
+  border-color: var(--line);
+  background: var(--panel);
+}
+
+.btn.segmented.active {
+  border-color: rgba(242, 193, 78, 0.72);
+  background: rgba(242, 193, 78, 0.12);
+  color: var(--gold);
+  font-weight: 800;
+}
+
 .btn.danger {
   color: #fff;
   border-color: rgba(255, 107, 107, 0.5);
@@ -234,6 +246,7 @@ select:focus {
 
 .vault-shell {
   display: grid;
+  align-content: start;
   gap: 20px;
   min-height: 100vh;
   min-height: 100dvh;
@@ -271,10 +284,50 @@ select:focus {
   justify-content: flex-end;
 }
 
+.actions-menu {
+  position: relative;
+}
+
+.actions-menu summary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  list-style: none;
+}
+
+.actions-menu summary::-webkit-details-marker {
+  display: none;
+}
+
+.actions-menu-panel {
+  position: absolute;
+  z-index: 3;
+  right: 0;
+  top: calc(100% + 8px);
+  display: grid;
+  gap: 8px;
+  min-width: 190px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #11171d;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.34);
+}
+
+.actions-menu-panel .btn,
+.actions-menu-panel > span,
+.actions-menu-panel > span .btn {
+  width: 100%;
+}
+
 .vault-summary {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
+}
+
+.mobile-pane-switch {
+  display: none;
 }
 
 .stat-tile {
@@ -399,11 +452,18 @@ select:focus {
 
 .secret-line {
   display: grid;
-  grid-template-columns: 120px minmax(0, 1fr) auto auto;
+  grid-template-columns: 120px minmax(0, 1fr) auto;
   gap: 10px;
   align-items: center;
   padding: 14px 0;
   border-top: 1px solid var(--line);
+}
+
+.secret-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
 }
 
 .secret-value,
@@ -448,6 +508,30 @@ select:focus {
   color: var(--green);
 }
 
+.password-checklist {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 12px;
+  margin: 0;
+  padding: 0;
+  color: var(--muted);
+  font-size: 0.86rem;
+  list-style: none;
+}
+
+.password-checklist li::before {
+  content: "•";
+  margin-right: 6px;
+}
+
+.password-checklist .met {
+  color: var(--green);
+}
+
+.password-checklist .met::before {
+  content: "✓";
+}
+
 .visually-hidden {
   position: absolute;
   width: 1px;
@@ -462,8 +546,8 @@ select:focus {
   }
 
   .vault-shell {
-    gap: 14px;
-    padding: 14px;
+    gap: 12px;
+    padding: 12px;
   }
 
   .vault-hero,
@@ -472,7 +556,21 @@ select:focus {
   }
 
   .vault-hero {
-    padding: 18px;
+    gap: 12px;
+    padding: 14px;
+  }
+
+  .vault-title h1 {
+    margin-bottom: 0;
+    font-size: 1.6rem;
+  }
+
+  .vault-title .eyebrow {
+    margin-bottom: 4px;
+  }
+
+  .vault-title .lede {
+    display: none;
   }
 
   .vault-actions {
@@ -483,38 +581,70 @@ select:focus {
 
   .vault-actions .btn,
   .vault-actions > span,
-  .vault-actions > span .btn {
+  .vault-actions > span .btn,
+  .vault-actions > details,
+  .vault-actions > details > summary {
     width: 100%;
+  }
+
+  .actions-menu-panel {
+    left: 0;
+    right: 0;
   }
 
   .vault-summary {
     grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
   }
 
   .stat-tile {
-    min-height: 72px;
-    padding: 12px;
+    min-height: 58px;
+    padding: 10px;
   }
 
   .stat-value {
     font-size: 1.15rem;
   }
 
+  .stat-label {
+    font-size: 0.78rem;
+  }
+
+  .mobile-pane-switch {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .pane-list .detail,
+  .pane-detail .list-panel {
+    display: none;
+  }
+
+  .vault-workspace {
+    gap: 12px;
+  }
+
   .entry-list {
     overflow: visible;
   }
 
-  .form-grid,
-  .secret-line {
+  .form-grid {
     grid-template-columns: 1fr;
   }
 
   .secret-line {
-    align-items: stretch;
+    grid-template-columns: 1fr;
+    align-items: start;
+    gap: 8px;
   }
 
-  .secret-line .btn {
-    width: 100%;
+  .secret-actions {
+    justify-content: flex-start;
+  }
+
+  .secret-actions .btn {
+    min-width: 104px;
   }
 
   .detail-header,
@@ -537,7 +667,7 @@ select:focus {
   }
 
   .detail {
-    padding: 16px;
+    padding: 0;
   }
 
   .button-row,
@@ -553,5 +683,9 @@ select:focus {
   .auth-actions .btn,
   .generator .btn {
     width: 100%;
+  }
+
+  .password-checklist {
+    grid-template-columns: 1fr;
   }
 }

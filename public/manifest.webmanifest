@@ -2,7 +2,7 @@
   "name": "Secure Password Vault",
   "short_name": "Vault",
   "id": "./",
-  "description": "Yerel ve sifir-bilgi mantiginda calisan guvenli sifre kasasi.",
+  "description": "Yerel ve sıfır-bilgi mantığında çalışan güvenli şifre kasası.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
