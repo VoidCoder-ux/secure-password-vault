@@ -25,4 +25,6 @@ test('service worker and touch target styles stay in place', async () => {
   assert.match(css, /env\(safe-area-inset-bottom\)/);
   assert.match(css, /\.btn\.compact\s*\{[^}]*min-height:\s*44px/s);
   assert.match(css, /\.check-line\s*\{[^}]*min-height:\s*44px/s);
+  assert.match(css, /\.vault-workspace\s*\{/);
+  assert.doesNotMatch(css, /max-height:\s*34vh/);
 });

@@ -214,28 +214,57 @@ function renderVault(notice = '', noticeType = 'success') {
   scheduleAutoLock();
   const visibleEntries = getFilteredEntries();
   const selected = visibleEntries.find((entry) => entry.id === state.selectedId) || null;
+  const totalEntries = state.vault.entries.length;
+  const favoriteEntries = state.vault.entries.filter((entry) => entry.favorite).length;
   app.replaceChildren(
     el('main', { className: 'vault-shell' }, [
-      el('aside', { className: 'sidebar' }, [
-        el('div', { className: 'topline' }, [
-          el('div', {}, [el('p', { className: 'eyebrow' }, ['Kasa']), el('h1', {}, ['Sifreler'])]),
-          button('+', 'icon primary', () => editEntry(null), 'Yeni kayit')
+      el('header', { className: 'vault-hero' }, [
+        el('div', { className: 'vault-title' }, [
+          el('p', { className: 'eyebrow' }, ['Yerel sifreli kasa']),
+          el('h1', {}, ['Sifre kasasi']),
+          el('p', { className: 'lede' }, [
+            'Kayitlariniz bu cihazda sifreli tutulur. Ana parola olmadan kasa acilamaz.'
+          ])
         ]),
-        searchBox(),
-        entryList(),
-        el('div', { className: 'side-actions' }, [
+        el('div', { className: 'vault-actions' }, [
+          button('Yeni kayit', 'primary', () => editEntry(null)),
           button('Yedek indir', 'ghost', exportVault),
           importButton(),
           button('Kilitle', 'ghost', () => lockVault('Kasa kilitlendi.'))
         ])
       ]),
-      el('section', { className: 'detail' }, [
-        notice ? el('div', { className: `alert ${noticeType}`, role: noticeType === 'danger' ? 'alert' : 'status' }, [notice]) : null,
-        securityBar(),
-        selected ? entryDetail(selected) : emptyState()
+      el('section', { className: 'vault-summary' }, [
+        statTile('Toplam kayit', String(totalEntries)),
+        statTile('Favori', String(favoriteEntries)),
+        statTile('Oto kilit', `${state.lockMinutes} dk`)
+      ]),
+      el('section', { className: 'vault-workspace' }, [
+        el('section', { className: 'list-panel' }, [
+          el('div', { className: 'list-panel-header' }, [
+            el('div', {}, [
+              el('p', { className: 'eyebrow' }, ['Kayitlar']),
+              el('h2', {}, [state.search ? 'Arama sonuclari' : 'Tum sifreler'])
+            ]),
+            button('+', 'icon primary', () => editEntry(null), 'Yeni kayit')
+          ]),
+          searchBox(),
+          entryList()
+        ]),
+        el('section', { className: 'detail' }, [
+          notice ? el('div', { className: `alert ${noticeType}`, role: noticeType === 'danger' ? 'alert' : 'status' }, [notice]) : null,
+          securityBar(),
+          selected ? entryDetail(selected) : emptyState()
+        ])
       ])
     ])
   );
+}
+
+function statTile(label, value) {
+  return el('div', { className: 'stat-tile' }, [
+    el('span', { className: 'stat-value' }, [value]),
+    el('span', { className: 'stat-label' }, [label])
+  ]);
 }
 
 function searchBox() {
